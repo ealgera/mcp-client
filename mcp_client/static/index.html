@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Client Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-6">
+        <header class="bg-white rounded-lg shadow-md p-4 mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">MCP Client</h1>
+            <p class="text-gray-600">Een test interface voor de MCP Client API</p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- API Tests -->
+            <div class="bg-white rounded-lg shadow-md p-4">
+                <h2 class="text-xl font-semibold mb-4">API Tests</h2>
+                
+                <div class="space-y-4">
+                    <button id="healthCheck" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                        Health Check
+                    </button>
+                    
+                    <button id="getServers" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
+                        Get MCP Servers
+                    </button>
+                    
+                    <button id="getTools" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded">
+                        Get MCP Tools
+                    </button>
+                    
+                    <button id="getResources" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded">
+                        Get MCP Resources
+                    </button>
+                    
+                    <button id="getPrompts" class="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded">
+                        Get MCP Prompts
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Results -->
+            <div class="bg-white rounded-lg shadow-md p-4">
+                <h2 class="text-xl font-semibold mb-4">Results</h2>
+                
+                <div id="result" class="bg-gray-100 p-4 rounded-lg h-96 overflow-auto">
+                    <pre class="text-sm text-gray-800">Results will appear here...</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API base URL
+        const API_BASE = '/api/v1';
+        
+        // Helper function for API calls
+        async function callAPI(endpoint) {
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`);
+                const data = await response.json();
+                displayResult(data);
+            } catch (error) {
+                displayResult({ error: error.message });
+            }
+        }
+        
+        // Display results
+        function displayResult(data) {
+            const resultElement = document.querySelector('#result pre');
+            resultElement.textContent = JSON.stringify(data, null, 2);
+        }
+        
+        // Add event listeners
+        document.getElementById('healthCheck').addEventListener('click', () => callAPI('/health'));
+        document.getElementById('getServers').addEventListener('click', () => callAPI('/mcp/servers'));
+        document.getElementById('getTools').addEventListener('click', () => callAPI('/mcp/tools'));
+        document.getElementById('getResources').addEventListener('click', () => callAPI('/mcp/resources'));
+        document.getElementById('getPrompts').addEventListener('click', () => callAPI('/mcp/prompts'));
+    </script>
+</body>
+</html>

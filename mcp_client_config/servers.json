@@ -1,0 +1,14 @@
+{
+  "servers": [
+    {
+      "name": "Example MCP Server",
+      "url": "http://localhost:3000",
+      "transport_type": "sse",
+      "auth_token": null,
+      "enabled": true,
+      "metadata": {
+        "description": "Example MCP server for demonstration"
+      }
+    }
+  ]
+}
