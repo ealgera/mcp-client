@@ -50,3 +50,12 @@ frontend/node_modules/
 .coverage
 htmlcov/
 .pytest_cache/
+
+# Large documentation files
+MCP-documentation.md
+
+# Local development
+data/
+*.bak
+.coverage
+htmlcov/
