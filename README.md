@@ -8,17 +8,30 @@ MCP Client is een applicatie die een browser-gebaseerde interface biedt voor geb
 
 Deze applicatie maakt het mogelijk om:
 - Met verschillende LLMs te chatten in een gebruiksvriendelijke interface
-- MCP servers te ontdekken en ermee te verbinden
+- MCP servers te configureren en ermee te verbinden
 - Tools van MCP servers aan te roepen via LLM chat
 - Bestanden en andere resources te delen met LLMs
 - Herbruikbare prompts te gebruiken
 
+## Status van het Project
+
+Dit project is in ontwikkeling. Momenteel zijn de volgende onderdelen geïmplementeerd:
+
+- [x] Basisstructuur van het project
+- [x] FastAPI backend met MCP API endpoints
+- [x] Mock MCP client implementatie
+- [x] LLM integratie abstracties
+- [x] Configuratiebeheer
+- [ ] Chat interface
+- [ ] Frontend implementatie
+- [ ] Echte MCP SDK integratie
+- [ ] Gebruikersauthenticatie
+
 ## Installatie
 
 ### Vereisten
-- Python 3.9 of hoger
+- Python 3.10 of hoger
 - Node.js 16 of hoger (voor frontend ontwikkeling)
-- Docker (optioneel, voor containerized deployment)
 
 ### Lokale ontwikkelomgeving
 ```bash
@@ -44,6 +57,8 @@ De volgende API endpoints zijn beschikbaar:
 - `GET /api/v1/mcp/prompts` - Lijst van beschikbare prompts
 
 ## Ontwikkeling
+
+Zie [VOLGENDE_STAPPEN.MD](VOLGENDE_STAPPEN.MD) voor meer informatie over de geplande ontwikkeling.
 
 ### Project Structuur
 
@@ -94,7 +109,7 @@ MCP servers kunnen worden geconfigureerd in het `mcp_client_config/servers.json`
 
 ## Licentie
 
-Dit project is gelicenseerd onder de MIT-licentie - zie het [LICENSE](LICENSE) bestand voor details.
+Dit project is gelicenseerd onder de MIT-licentie.
 
 ## Gerelateerde Projecten
 
