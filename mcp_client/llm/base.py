@@ -65,27 +65,59 @@ class LLMProviderRegistry:
     def __init__(self):
         self.providers: Dict[str, LLMProvider] = {}
         self.default_provider: Optional[str] = None
+        self._initialized = False
     
     def register(self, name: str, provider: LLMProvider, default: bool = False) -> None:
         """Register a provider."""
         self.providers[name] = provider
         if default or self.default_provider is None:
             self.default_provider = name
+        self._initialized = True
     
     def get_provider(self, name: Optional[str] = None) -> LLMProvider:
         """Get a provider by name, or the default if no name is provided."""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        logger.info(f"Requested provider: {name}")
+        logger.info(f"Available providers: {list(self.providers.keys())}")
+        logger.info(f"Default provider: {self.default_provider}")
+        
+        # Ensure we always have a fallback to mock provider
+        if not self._initialized or not self.providers:
+            # Import here to avoid circular imports
+            logger.warning("No providers registered, registering mock provider")
+            from mcp_client.llm.mock import register_provider as register_mock
+            register_mock(default=True)
+        
         if name is None:
             if self.default_provider is None:
+                logger.error("No default provider registered")
                 raise ValueError("No default provider registered")
             name = self.default_provider
+            logger.info(f"No name provided, using default provider: {name}")
             
         if name not in self.providers:
-            raise ValueError(f"Provider not found: {name}")
+            logger.warning(f"Requested provider '{name}' not found")
+            if self.default_provider and self.default_provider in self.providers:
+                # Fall back to default provider
+                logger.info(f"Falling back to default provider: {self.default_provider}")
+                return self.providers[self.default_provider]
+            else:
+                logger.error(f"Provider not found and no default provider available: {name}")
+                raise ValueError(f"Provider not found: {name}")
             
+        logger.info(f"Using provider: {name}")
         return self.providers[name]
     
     def get_available_providers(self) -> List[str]:
         """Get a list of available provider names."""
+        # Ensure we always have a fallback to mock provider
+        if not self._initialized or not self.providers:
+            # Import here to avoid circular imports
+            from mcp_client.llm.mock import register_provider as register_mock
+            register_mock(default=True)
+            
         return list(self.providers.keys())
 
 

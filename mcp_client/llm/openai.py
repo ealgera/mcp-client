@@ -47,10 +47,10 @@ class OpenAIProvider(LLMProvider):
     def __init__(self, api_key: Optional[str] = None, default_model: Optional[str] = None):
         """Initialize with API key."""
         self.api_key = api_key or os.environ.get("OPENAI_API_KEY")
-        if not self.api_key:
-            raise ValueError("OpenAI API key not provided and not found in environment")
-            
-        self.client = AsyncOpenAI(api_key=self.api_key)
+        self._has_valid_key = bool(self.api_key)
+        
+        # Initialize client even with dummy key
+        self.client = AsyncOpenAI(api_key=self.api_key or "dummy_key")
         self._default_model = default_model or "gpt-4-turbo"
         self._available_models = [
             "gpt-4-turbo",
@@ -65,6 +65,14 @@ class OpenAIProvider(LLMProvider):
         options: Optional[LLMOptions] = None
     ) -> str:
         """Generate a completion with OpenAI GPT."""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # Check if API key is available
+        if not self._has_valid_key:
+            logger.error("OpenAI API key not provided and not found in environment")
+            raise ValueError("OpenAI API key not provided and not found in environment")
+        
         options = options or LLMOptions()
         model_name = model or self._default_model
         
@@ -82,6 +90,8 @@ class OpenAIProvider(LLMProvider):
                     "role": msg.role,
                     "content": msg.content
                 })
+        
+        logger.info(f"Calling OpenAI API with model {model_name}")
         
         # Make the API call
         response = await self.client.chat.completions.create(
@@ -104,6 +114,14 @@ class OpenAIProvider(LLMProvider):
         options: Optional[LLMOptions] = None
     ) -> AsyncIterator[str]:
         """Generate a streaming completion with OpenAI GPT."""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # Check if API key is available
+        if not self._has_valid_key:
+            logger.error("OpenAI API key not provided and not found in environment")
+            raise ValueError("OpenAI API key not provided and not found in environment")
+        
         options = options or LLMOptions(stream=True)
         model_name = model or self._default_model
         
@@ -121,6 +139,8 @@ class OpenAIProvider(LLMProvider):
                     "role": msg.role,
                     "content": msg.content
                 })
+        
+        logger.info(f"Calling OpenAI streaming API with model {model_name}")
         
         # Make the streaming API call
         stream = await self.client.chat.completions.create(

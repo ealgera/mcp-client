@@ -3,6 +3,10 @@ Main application entry point.
 """
 import os
 import uvicorn
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 from mcp_client.config.settings import settings
 

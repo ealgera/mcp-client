@@ -53,10 +53,10 @@ class AnthropicProvider(LLMProvider):
     def __init__(self, api_key: Optional[str] = None, default_model: Optional[str] = None):
         """Initialize with API key."""
         self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
-        if not self.api_key:
-            raise ValueError("Anthropic API key not provided and not found in environment")
-            
-        self.client = anthropic.Anthropic(api_key=self.api_key)
+        self._has_valid_key = bool(self.api_key)
+        
+        # Initialize client if key is available
+        self.client = anthropic.Anthropic(api_key=self.api_key or "dummy_key")
         self._default_model = default_model or "claude-3-sonnet-20240229"
         self._available_models = [
             "claude-3-opus-20240229",
@@ -72,6 +72,14 @@ class AnthropicProvider(LLMProvider):
         options: Optional[LLMOptions] = None
     ) -> str:
         """Generate a completion with Anthropic Claude."""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # Check if API key is available
+        if not self._has_valid_key:
+            logger.error("Anthropic API key not provided and not found in environment")
+            raise ValueError("Anthropic API key not provided and not found in environment")
+        
         options = options or LLMOptions()
         model_name = model or self._default_model
         
@@ -83,6 +91,8 @@ class AnthropicProvider(LLMProvider):
             }
             for msg in messages
         ]
+        
+        logger.info(f"Calling Anthropic API with model {model_name}")
         
         # Make the API call
         response = await self.client.messages.create(
@@ -105,6 +115,17 @@ class AnthropicProvider(LLMProvider):
         options: Optional[LLMOptions] = None
     ) -> AsyncIterator[str]:
         """Generate a streaming completion with Anthropic Claude."""
+        import logging
+        import asyncio
+        from anthropic import Anthropic
+        
+        logger = logging.getLogger(__name__)
+        
+        # Check if API key is available
+        if not self._has_valid_key:
+            logger.error("Anthropic API key not provided and not found in environment")
+            raise ValueError("Anthropic API key not provided and not found in environment")
+        
         options = options or LLMOptions(stream=True)
         model_name = model or self._default_model
         
@@ -117,20 +138,36 @@ class AnthropicProvider(LLMProvider):
             for msg in messages
         ]
         
-        # Make the streaming API call
-        stream = await self.client.messages.create(
-            model=model_name,
-            messages=anthropic_messages,
-            temperature=options.temperature,
-            max_tokens=options.max_tokens or 4000,
-            stream=True,
-            stop_sequences=options.stop_sequences or None,
-            top_p=options.top_p,
-        )
+        logger.info(f"Calling Anthropic streaming API with model {model_name}")
         
-        async for chunk in stream:
-            if chunk.type == "content_block_delta" and chunk.delta.type == "text_delta":
-                yield chunk.delta.text
+        # Direct implementation for Anthropic v0.49.0
+        try:
+            # Direct approach using anthropic.Anthropic for specific version
+            # This avoids the async iteration issues
+            stream_response = self.client.messages.create(
+                model=model_name,
+                messages=anthropic_messages,
+                temperature=options.temperature,
+                max_tokens=options.max_tokens or 4000,
+                stream=True,
+                stop_sequences=options.stop_sequences or None,
+                top_p=options.top_p,
+            )
+            
+            # Process the stream synchronously
+            for chunk in stream_response:
+                if chunk.type == "content_block_delta" and chunk.delta.type == "text_delta":
+                    text = chunk.delta.text
+                    if text:
+                        # Small delay to allow for async behavior
+                        await asyncio.sleep(0.001)
+                        yield text
+                        
+        except Exception as e:
+            logger.error(f"Error in Anthropic streaming: {str(e)}")
+            error_msg = f"Anthropic streaming error: {str(e)}"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
     
     def get_available_models(self) -> List[str]:
         """Get the list of available models."""
