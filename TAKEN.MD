@@ -46,9 +46,13 @@
 - [x] OpenAI GPT integratie implementeren
 - [x] Response streaming implementeren
 - [ ] Foutafhandeling en recovery
+- [x] Model selectie en provider persistentie implementeren
 
 ## 6. Backend APIs
 - [ ] Chat API endpoints ontwikkelen
+  - [ ] Chat opslag en geschiedenis
+  - [ ] Chat threading ondersteuning
+  - [x] Provider selectie
 - [x] MCP server management API ontwikkelen
 - [x] Resource management API ontwikkelen
 - [x] Tool management API ontwikkelen
@@ -67,7 +71,7 @@
 - [ ] Chat UI implementeren
 - [ ] Streaming response weergave
 - [ ] Message rendering (inclusief verschillende content types)
-- [ ] Model selectie interface
+- [x] Model selectie interface
 - [ ] Tool selectie en gebruikerstoestemming UI
 - [ ] Resource selectie interface
 - [ ] Prompts interface
@@ -81,6 +85,9 @@
 
 ## 10. Testen en Kwaliteitsborging
 - [ ] Unit tests voor core functionaliteit
+  - [ ] LLM provider tests
+  - [ ] MCP client tests
+  - [ ] API endpoint tests
 - [ ] Integration tests voor API endpoints
 - [ ] End-to-end tests voor gebruikersstromen
 - [ ] Performance testen
@@ -101,16 +108,16 @@
 - [ ] Backup en recovery strategie
 - [ ] Monitoring en logging
 
-## 13. Eerste Release Voorbereiding
-- [ ] Bug fixes en stabilisatie
-- [ ] Performance optimalisatie
-- [ ] Gebruikerstesten
-- [ ] Release notes
-- [ ] Versie 1.0.0 taggen
+## 13. Eerstvolgende Prioriteiten
+- [ ] Database implementatie voor chat geschiedenis
+- [ ] Chat API endpoints voltooien
+- [ ] Frontend prototype met React en Tailwind
+- [ ] MCP resource handling implementeren
+- [ ] Unit tests voor core modules ontwikkelen
 
-## 14. Post-Release
-- [ ] Feedback verzamelen
-- [ ] Prioriteren van nieuwe features
-- [ ] Onderhoud en bug fixes
-- [ ] Community opbouwen
-- [ ] Extra MCP server integraties ontwikkelen
+## 14. Toekomstige Verbeteringen
+- [ ] Gebruikersauthenticatie systeem
+- [ ] Verbeterde error handling en logging
+- [ ] Performance optimalisatie
+- [ ] Extra MCP server integraties
+- [ ] Geavanceerde chat features (context beheer, etc.)

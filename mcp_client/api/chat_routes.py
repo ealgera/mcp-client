@@ -79,7 +79,8 @@ from mcp_client.api.models import (
     ChatSessionsResponse, ChatSessionResponse, MessageResponse,
     ChatSessionSummary, TextContent, MessageRole, MessageContentType
 )
-from mcp_client.api.chat_store import chat_store
+# Switch to the database-backed chat store
+from mcp_client.database.chat_store import get_chat_store, DatabaseChatStore
 
 
 logger = logging.getLogger(__name__)
@@ -88,7 +89,10 @@ chat_router = APIRouter()
 
 # Routes for chat sessions
 @chat_router.post("/sessions", response_model=ChatSessionResponse)
-async def create_session(request: CreateSessionRequest) -> ChatSessionResponse:
+async def create_session(
+    request: CreateSessionRequest,
+    chat_store: DatabaseChatStore = Depends(get_chat_store)
+) -> ChatSessionResponse:
     """Create a new chat session."""
     try:
         session = chat_store.create_session(request)
@@ -102,25 +106,11 @@ async def create_session(request: CreateSessionRequest) -> ChatSessionResponse:
 
 
 @chat_router.get("/sessions", response_model=ChatSessionsResponse)
-async def get_sessions() -> ChatSessionsResponse:
+async def get_sessions(chat_store: DatabaseChatStore = Depends(get_chat_store)) -> ChatSessionsResponse:
     """Get all chat sessions."""
     try:
         sessions = chat_store.get_all_sessions()
-        summaries = []
-        
-        for session in sessions:
-            summaries.append(
-                ChatSessionSummary(
-                    id=session.id,
-                    title=session.title,
-                    message_count=len(session.messages),
-                    created_at=session.created_at,
-                    updated_at=session.updated_at,
-                    model=session.model,
-                )
-            )
-        
-        return ChatSessionsResponse(sessions=summaries)
+        return ChatSessionsResponse(sessions=sessions)
     except Exception as e:
         logger.error(f"Error getting chat sessions: {str(e)}")
         raise HTTPException(
@@ -130,7 +120,10 @@ async def get_sessions() -> ChatSessionsResponse:
 
 
 @chat_router.get("/sessions/{session_id}", response_model=ChatSessionResponse)
-async def get_session(session_id: UUID) -> ChatSessionResponse:
+async def get_session(
+    session_id: UUID,
+    chat_store: DatabaseChatStore = Depends(get_chat_store)
+) -> ChatSessionResponse:
     """Get a chat session by ID."""
     try:
         session = chat_store.get_session(session_id)
@@ -147,7 +140,11 @@ async def get_session(session_id: UUID) -> ChatSessionResponse:
 
 # Routes for messages
 @chat_router.post("/sessions/{session_id}/messages", response_model=MessageResponse)
-async def create_message(session_id: UUID, request: CreateMessageRequest) -> MessageResponse:
+async def create_message(
+    session_id: UUID,
+    request: CreateMessageRequest,
+    chat_store: DatabaseChatStore = Depends(get_chat_store)
+) -> MessageResponse:
     """Create a new message and get a response."""
     try:
         # Process the message and get assistant response
@@ -168,7 +165,11 @@ async def create_message(session_id: UUID, request: CreateMessageRequest) -> Mes
 
 
 @chat_router.post("/sessions/{session_id}/messages/stream")
-async def stream_message(session_id: UUID, request: CreateMessageRequest):
+async def stream_message(
+    session_id: UUID,
+    request: CreateMessageRequest,
+    chat_store: DatabaseChatStore = Depends(get_chat_store)
+):
     """Create a new message and stream the response."""
     try:
         # Create generator function for streaming
@@ -197,6 +198,7 @@ async def stream_message_get(
     session_id: UUID,
     content: str,
     role: str = "user",
+    chat_store: DatabaseChatStore = Depends(get_chat_store)
 ):
     """Create a new message and stream the response (GET version)."""
     try:

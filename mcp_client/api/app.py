@@ -17,6 +17,7 @@ from mcp_client.api.routes import api_router
 from mcp_client.core.mcp.client import MCPConnectionManager
 from mcp_client.llm.anthropic import register_provider as register_anthropic
 from mcp_client.llm.openai import register_provider as register_openai
+from mcp_client.database.base import init_db
 
 
 logger = logging.getLogger(__name__)
@@ -68,6 +69,13 @@ def create_app() -> FastAPI:
         logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
         
         logger.info(f"Starting {settings.app_name}")
+        
+        # Initialize database
+        try:
+            init_db()
+            logger.info("Database initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize database: {str(e)}")
         
         # Register LLM providers
         registration_success = False
