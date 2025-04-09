@@ -10,10 +10,14 @@ from mcp_client.api.models import (
     PromptsResponse, ServerInfoSchema, ToolResponse, ResourceResponse, 
     PromptResponse, ToolSchema, ResourceSchema, PromptSchema
 )
+from mcp_client.api.chat_routes import chat_router
 
 
 # Create API router
 api_router = APIRouter()
+
+# Include chat routes
+api_router.include_router(chat_router, prefix="/chat", tags=["chat"])
 
 
 # Helper function to get MCP manager

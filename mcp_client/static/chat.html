@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Client - Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-6">
+        <header class="bg-white rounded-lg shadow-md p-4 mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">MCP Client Chat</h1>
+            <p class="text-gray-600">Chat met Large Language Models</p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <!-- Sidebar -->
+            <div class="md:col-span-1 bg-white rounded-lg shadow-md p-4">
+                <h2 class="text-xl font-semibold mb-4">Sessies</h2>
+                
+                <div class="mb-4">
+                    <button id="newSessionBtn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded">
+                        Nieuwe Sessie
+                    </button>
+                </div>
+                
+                <div id="sessionsList" class="space-y-2">
+                    <!-- Sessions will be listed here -->
+                </div>
+            </div>
+            
+            <!-- Chat Area -->
+            <div class="md:col-span-3 bg-white rounded-lg shadow-md p-4 flex flex-col h-[80vh]">
+                <h2 id="sessionTitle" class="text-xl font-semibold mb-4">Selecteer of maak een sessie</h2>
+                
+                <!-- Messages Container -->
+                <div id="messagesContainer" class="flex-grow overflow-auto mb-4 p-4 bg-gray-50 rounded">
+                    <div class="text-gray-400 text-center">
+                        Geen sessie geselecteerd
+                    </div>
+                </div>
+                
+                <!-- Input Area -->
+                <div id="inputArea" class="relative">
+                    <textarea 
+                        id="messageInput" 
+                        class="w-full p-3 border border-gray-300 rounded resize-none"
+                        placeholder="Type een bericht..." 
+                        rows="3"
+                        disabled
+                    ></textarea>
+                    <button 
+                        id="sendButton" 
+                        class="absolute bottom-3 right-3 bg-blue-500 hover:bg-blue-600 text-white rounded-full p-2 disabled:bg-gray-400"
+                        disabled
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Session Modal -->
+    <div id="newSessionModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 class="text-xl font-semibold mb-4">Nieuwe Chat Sessie</h3>
+            
+            <div class="mb-4">
+                <label for="sessionTitle" class="block text-sm font-medium text-gray-700 mb-1">Titel</label>
+                <input type="text" id="sessionTitleInput" class="w-full p-2 border border-gray-300 rounded" placeholder="Geef de sessie een titel">
+            </div>
+            
+            <div class="mb-4">
+                <label for="modelSelect" class="block text-sm font-medium text-gray-700 mb-1">Model</label>
+                <select id="modelSelect" class="w-full p-2 border border-gray-300 rounded">
+                    <option value="">Selecteer een model</option>
+                    <option value="claude-3-sonnet-20240229">Claude 3 Sonnet</option>
+                    <option value="claude-3-haiku-20240307">Claude 3 Haiku</option>
+                    <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                </select>
+            </div>
+            
+            <div class="mb-4">
+                <label for="systemPrompt" class="block text-sm font-medium text-gray-700 mb-1">Systeem Prompt (optioneel)</label>
+                <textarea id="systemPrompt" class="w-full p-2 border border-gray-300 rounded resize-none" rows="3" placeholder="Je bent een behulpzame assistent..."></textarea>
+            </div>
+            
+            <div class="flex justify-end space-x-3">
+                <button id="cancelSessionBtn" class="py-2 px-4 border border-gray-300 rounded hover:bg-gray-100">Annuleren</button>
+                <button id="createSessionBtn" class="py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded">Aanmaken</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API base URL
+        const API_BASE = '/api/v1';
+        
+        // DOM Elements
+        const sessionsList = document.getElementById('sessionsList');
+        const messagesContainer = document.getElementById('messagesContainer');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const sessionTitle = document.getElementById('sessionTitle');
+        const newSessionBtn = document.getElementById('newSessionBtn');
+        const newSessionModal = document.getElementById('newSessionModal');
+        const cancelSessionBtn = document.getElementById('cancelSessionBtn');
+        const createSessionBtn = document.getElementById('createSessionBtn');
+        const sessionTitleInput = document.getElementById('sessionTitleInput');
+        const modelSelect = document.getElementById('modelSelect');
+        const systemPrompt = document.getElementById('systemPrompt');
+        
+        // State
+        let currentSessionId = null;
+        let eventSource = null;
+
+        // Helper function for API calls
+        async function callAPI(endpoint, method = 'GET', data = null) {
+            try {
+                const options = {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                };
+                
+                if (data) {
+                    options.body = JSON.stringify(data);
+                }
+                
+                const response = await fetch(`${API_BASE}${endpoint}`, options);
+                
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status}`);
+                }
+                
+                return await response.json();
+            } catch (error) {
+                console.error('API Error:', error);
+                return null;
+            }
+        }
+        
+        // Load sessions
+        async function loadSessions() {
+            const result = await callAPI('/chat/sessions');
+            
+            if (result && result.sessions) {
+                sessionsList.innerHTML = '';
+                
+                if (result.sessions.length === 0) {
+                    sessionsList.innerHTML = '<div class="text-gray-400 text-center">Geen sessies</div>';
+                    return;
+                }
+                
+                // Sort by updated_at descending
+                result.sessions.sort((a, b) => {
+                    return new Date(b.updated_at) - new Date(a.updated_at);
+                });
+                
+                result.sessions.forEach(session => {
+                    const sessionElement = document.createElement('div');
+                    sessionElement.className = `p-2 border rounded cursor-pointer hover:bg-gray-100 ${currentSessionId === session.id ? 'bg-blue-100 border-blue-500' : 'border-gray-200'}`;
+                    sessionElement.innerHTML = `
+                        <div class="font-medium">${session.title}</div>
+                        <div class="text-xs text-gray-500">${formatDate(session.updated_at)}</div>
+                    `;
+                    
+                    sessionElement.addEventListener('click', () => {
+                        loadSession(session.id);
+                    });
+                    
+                    sessionsList.appendChild(sessionElement);
+                });
+            }
+        }
+        
+        // Load session
+        async function loadSession(sessionId) {
+            const result = await callAPI(`/chat/sessions/${sessionId}`);
+            
+            if (result && result.session) {
+                // Update state
+                currentSessionId = sessionId;
+                
+                // Update UI
+                sessionTitle.textContent = result.session.title;
+                messagesContainer.innerHTML = '';
+                messageInput.disabled = false;
+                sendButton.disabled = false;
+                
+                // Display messages
+                if (result.session.messages.length === 0) {
+                    messagesContainer.innerHTML = '<div class="text-gray-400 text-center">Geen berichten</div>';
+                } else {
+                    result.session.messages.forEach(message => {
+                        displayMessage(message);
+                    });
+                    
+                    // Scroll to bottom
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }
+                
+                // Highlight selected session
+                document.querySelectorAll('#sessionsList > div').forEach(el => {
+                    el.classList.remove('bg-blue-100', 'border-blue-500');
+                    el.classList.add('border-gray-200');
+                });
+                
+                const selectedElement = Array.from(document.querySelectorAll('#sessionsList > div')).find(
+                    el => el.querySelector('.font-medium').textContent === result.session.title
+                );
+                
+                if (selectedElement) {
+                    selectedElement.classList.add('bg-blue-100', 'border-blue-500');
+                    selectedElement.classList.remove('border-gray-200');
+                }
+            }
+        }
+        
+        // Create session
+        async function createSession(title, model, systemPrompt) {
+            const data = {
+                title: title,
+                model: model || undefined,
+                system_prompt: systemPrompt || undefined
+            };
+            
+            const result = await callAPI('/chat/sessions', 'POST', data);
+            
+            if (result && result.session) {
+                // Load sessions and select new one
+                await loadSessions();
+                loadSession(result.session.id);
+                
+                // Close modal
+                newSessionModal.classList.add('hidden');
+                
+                // Clear form
+                sessionTitleInput.value = '';
+                modelSelect.value = '';
+                systemPrompt.value = '';
+            }
+        }
+        
+        // Send message
+        async function sendMessage(content) {
+            if (!currentSessionId || !content.trim()) return;
+            
+            // Disable input while processing
+            messageInput.disabled = true;
+            sendButton.disabled = true;
+            
+            // Create user message locally for immediate display
+            const userMessage = {
+                id: Date.now().toString(),
+                role: 'user',
+                content: {
+                    type: 'text',
+                    text: content
+                },
+                created_at: new Date().toISOString()
+            };
+            
+            displayMessage(userMessage);
+            messageInput.value = '';
+            
+            // Scroll to bottom
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            
+            // Create placeholder for assistant response
+            const placeholderId = 'response-placeholder';
+            const placeholderElement = document.createElement('div');
+            placeholderElement.id = placeholderId;
+            placeholderElement.className = 'flex flex-col space-y-2 mb-4';
+            placeholderElement.innerHTML = `
+                <div class="flex items-start">
+                    <div class="rounded-lg bg-blue-100 px-4 py-2 max-w-[80%]">
+                        <div class="text-sm text-gray-800">
+                            <div class="typing-indicator"><span>.</span><span>.</span><span>.</span></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            messagesContainer.appendChild(placeholderElement);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            
+            // Add typing indicator animation
+            const style = document.createElement('style');
+            style.textContent = `
+                .typing-indicator {
+                    display: inline-flex;
+                }
+                .typing-indicator span {
+                    animation: blink 1.5s infinite;
+                    height: 5px;
+                    width: 5px;
+                    margin: 0 2px;
+                    background-color: #3b82f6;
+                    border-radius: 50%;
+                    display: inline-block;
+                }
+                .typing-indicator span:nth-child(2) {
+                    animation-delay: 0.2s;
+                }
+                .typing-indicator span:nth-child(3) {
+                    animation-delay: 0.4s;
+                }
+                @keyframes blink {
+                    0% { opacity: 0.1; }
+                    20% { opacity: 1; }
+                    100% { opacity: 0.1; }
+                }
+            `;
+            document.head.appendChild(style);
+            
+            try {
+                // We'll use the GET version of the streaming endpoint directly
+                // This handles both creating the message and streaming the response
+                // Close any existing EventSource
+                if (eventSource) {
+                    eventSource.close();
+                }
+                
+                // Use GET version for compatibility with SSE
+                const data = { content, role: 'user' };
+                const url = `${API_BASE}/chat/sessions/${currentSessionId}/messages/stream?${new URLSearchParams(data)}`;
+                console.log("Connecting to SSE endpoint:", url);
+                eventSource = new EventSource(url);
+                
+                let responseText = '';
+                
+                eventSource.onmessage = function(event) {
+                    // Extract the data from the event
+                    try {
+                        // Try to get the content directly
+                        responseText += event.data;
+                        
+                        // Update placeholder with streaming text
+                        const placeholder = document.getElementById(placeholderId);
+                        if (placeholder) {
+                            placeholder.innerHTML = `
+                                <div class="flex items-start">
+                                    <div class="rounded-lg bg-blue-100 px-4 py-2 max-w-[80%]">
+                                        <div class="text-sm text-gray-800">
+                                            ${responseText}
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                        }
+                    } catch (e) {
+                        console.error("Error parsing message:", e);
+                    }
+                };
+                
+                eventSource.onerror = function(error) {
+                    console.error('EventSource error:', error);
+                    eventSource.close();
+                    
+                    // Display error if response is empty
+                    if (!responseText) {
+                        const placeholder = document.getElementById(placeholderId);
+                        if (placeholder) {
+                            placeholder.innerHTML = `
+                                <div class="flex items-start">
+                                    <div class="rounded-lg bg-red-100 px-4 py-2 max-w-[80%]">
+                                        <div class="text-sm text-red-800">
+                                            Error generating response.
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    }
+                    
+                    // Re-enable input
+                    messageInput.disabled = false;
+                    sendButton.disabled = false;
+                    messageInput.focus();
+                };
+                
+                eventSource.addEventListener('end', function() {
+                    eventSource.close();
+                    
+                    // Re-enable input
+                    messageInput.disabled = false;
+                    sendButton.disabled = false;
+                    messageInput.focus();
+                });
+                
+            } catch (error) {
+                console.error('Streaming error:', error);
+                
+                // Display error message
+                const placeholder = document.getElementById(placeholderId);
+                if (placeholder) {
+                    placeholder.innerHTML = `
+                        <div class="flex items-start">
+                            <div class="rounded-lg bg-red-100 px-4 py-2 max-w-[80%]">
+                                <div class="text-sm text-red-800">
+                                    Error: ${error.message}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Re-enable input
+                messageInput.disabled = false;
+                sendButton.disabled = false;
+                messageInput.focus();
+            }
+        }
+        
+        // Display message
+        function displayMessage(message) {
+            const messageElement = document.createElement('div');
+            messageElement.className = 'flex flex-col space-y-2 mb-4';
+            
+            // Get message text based on content type
+            let messageText = '';
+            if (typeof message.content === 'string') {
+                messageText = message.content;
+            } else if (message.content.type === 'text') {
+                messageText = message.content.text;
+            } else if (Array.isArray(message.content)) {
+                messageText = message.content.map(c => {
+                    if (c.type === 'text') return c.text;
+                    return JSON.stringify(c);
+                }).join('\n');
+            } else {
+                messageText = JSON.stringify(message.content);
+            }
+            
+            // Add to container
+            if (message.role === 'user') {
+                messageElement.innerHTML = `
+                    <div class="flex justify-end">
+                        <div class="rounded-lg bg-blue-500 text-white px-4 py-2 max-w-[80%]">
+                            <div class="text-sm">
+                                ${messageText}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (message.role === 'assistant') {
+                messageElement.innerHTML = `
+                    <div class="flex items-start">
+                        <div class="rounded-lg bg-blue-100 px-4 py-2 max-w-[80%]">
+                            <div class="text-sm text-gray-800">
+                                ${messageText}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (message.role === 'system') {
+                messageElement.innerHTML = `
+                    <div class="flex items-start">
+                        <div class="rounded-lg bg-gray-200 px-4 py-2 max-w-[80%]">
+                            <div class="text-xs text-gray-600">
+                                System: ${messageText}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            messagesContainer.appendChild(messageElement);
+        }
+        
+        // Utility function to format date
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleString();
+        }
+        
+        // Event Listeners
+        newSessionBtn.addEventListener('click', () => {
+            newSessionModal.classList.remove('hidden');
+            sessionTitleInput.focus();
+        });
+        
+        cancelSessionBtn.addEventListener('click', () => {
+            newSessionModal.classList.add('hidden');
+        });
+        
+        createSessionBtn.addEventListener('click', () => {
+            const title = sessionTitleInput.value.trim();
+            if (!title) {
+                alert('Geef een titel op voor de sessie');
+                return;
+            }
+            
+            createSession(
+                title,
+                modelSelect.value || undefined,
+                systemPrompt.value.trim() || undefined
+            );
+        });
+        
+        sendButton.addEventListener('click', () => {
+            const message = messageInput.value.trim();
+            if (message) {
+                sendMessage(message);
+            }
+        });
+        
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                const message = messageInput.value.trim();
+                if (message) {
+                    sendMessage(message);
+                }
+            }
+        });
+        
+        // Close modal if clicked outside
+        newSessionModal.addEventListener('click', (e) => {
+            if (e.target === newSessionModal) {
+                newSessionModal.classList.add('hidden');
+            }
+        });
+        
+        // Initial load
+        loadSessions();
+    </script>
+</body>
+</html>
